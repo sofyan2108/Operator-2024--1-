@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MENARA SIARAN 2024</title>
+   <style>
+        body {
+            font-family:  'Lato', 'Montserrat Reguler';
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #201e22;
+            color: #e0e0e0;
+            text-align: center;
+        }
+        h1 {
+            font-family:'Red Hat Display ExtraBold';
+            font-size: 48px;
+            color: #00d0ff;
+        }
+        #container {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        #playlist-section {
+            width: 90%;
+            padding: 10px;
+        }
+        #playlist-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #playlist-table th, #playlist-table td {
+            border: 2px solid #333;
+            padding: 5px;
+            text-align: center;
+        }
+        #playlist-table th {
+            background-color: #484848;
+            color: #e0e0e0;
+        }
+        #playlist-table td.total-pemutaran, #playlist-table td.kekurangan-pemutaran {
+            font-size: 1em;
+        }
+        #play-section {
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #current-track {
+            font-family: 'Red Hat Display ExtraBold';
+            margin-top: 0px;
+            font-size: 3em;
+        }
+        #pemutaran {
+            font-family: 'Lato';
+            font-size: 30px;
+            font-style: inherit;
+            margin-top: 0px;
+        }
+
+        audio {
+            margin-top: 0px;
+            width: 90%;
+        }
+
+        #toggle-autoplay {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #1da52b;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #toggle-autoplay:hover {
+            background-color: #26cf72;
+        }
+        
+        .playable-row {
+            cursor: pointer;
+            color: #dbd9d9;
+            text-decoration: none;
+            transition: text-shadow 0.3s ease, color 0.3s ease;
+        }
+        .playable-row:hover {
+            text-shadow: 0 0 20px #00d0ff;
+        }
+        .playable-row.glow-red {
+            text-shadow: 0 0 10px #ff0000;
+            color: #ff0000;
+        }
+        .disabled {
+            color: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>
+        <img src="mmwk.png" alt="Gambar Kiri" style="width: 100px; height: 100px; vertical-align: middle; margin-right: 20px;">
+            Daftar Iklan Menara Siaran 2024  
+        <img src="menarasiaran.png" alt="Gambar Kanan" style="width: 80px; height: 80px; vertical-align: middle; margin-left: 20px;">
+    </h1>
+    
+    <div id="container">
+        <div id="playlist-section">
+            <table id="playlist-table">
+                <thead>
+                    <tr>
+                        <th>Playlist</th>
+                        <th>Total Pemutaran</th>
+                        <th>Kekurangan Pemutaran</th>
+                    </tr>
+                </thead>
+                <tbody id="playlist-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="play-section">
+            <div id="current-track">
+                <p id="current-track-info">-</p>
+            </div>
+            <div id="pemutaran">
+                <p id="remaining-count">Pemutaran tersisa: -</p>
+            </div>
+            <audio id="audio-player" controls></audio>
+            <button id="toggle-autoplay">Matikan Autoplay</button>
+        </div>
+        
+    </div>
+    <script>
+        const playlist = {
+            "Anas Mandiri.mp3": 2,
+            "Arka Seafood.mp3": 4,
+            "Bariklana Material.mp3": 3,
+            "Chiko Media.mp3": 2,
+            "Event Supplies.mp3": 6,
+            "Griya Ijo.mp3": 5,
+            "Jaya Mulyo Parfum.mp3": 6,
+            "Julia Frozen Food.mp3": 2,
+            "K7 Serba 35 Ribu.mp3": 3,
+            "Khan Collection.mp3": 4,
+            "Maharani Catering.mp3": 2,
+            "Putra Kedaton Bike.mp3": 2,
+            "Sate Mak Adi.mp3":6,   
+            "Sate Kang Dayat.mp3": 2,
+            "Sate Pak Pong.mp3": 5,
+            "Weeka Wedang Uwuh.mp3": 3,
+            "Jingle Menara Siaran.mp3": 20,
+            "Iklan Menara Siaran.mp3":10
+        };
+        
+        let trackList = [];
+        let audioPlayer = document.getElementById('audio-player');
+        let playlistTableBody = document.getElementById('playlist-table-body');
+        let currentTrackElement = document.getElementById('current-track-info');
+        let remainingCountElement = document.getElementById('remaining-count');
+        let currentTrackData = {};
+        let shuffledTrackList = [];
+        let lastPlayedTrack = '';
+        let isPlaying = false;
+        let manualPlay = false; // Flag to indicate if the play was manual
+        let autoplayEnabled = true; // Autoplay status
+        
+        for (let [track, count] of Object.entries(playlist)) {
+            for (let i = 0; i < count; i++) {
+                trackList.push({track, remaining: count});
+            }
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        shuffleArray(trackList);
+        shuffledTrackList = [...trackList];
+        
+        let playlistData = Object.entries(playlist).map(([track, count]) => {
+            return { track, total: count, remaining: count };
+        });
+        
+        playlistData.sort((a, b) => b.remaining - a.remaining);
+        
+        for (let data of playlistData) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = 
+                `<td class="playable-row">${data.track}</td>
+                <td class="total-pemutaran">${data.total}</td>
+                <td class="kekurangan-pemutaran">${data.remaining}</td>`;
+            tr.querySelector('td').onclick = () => {
+                manualPlay = true;
+                playSelectedTrack(data.track, tr);
+            };
+            playlistTableBody.appendChild(tr);
+        }
+    
+        function playSelectedTrack(track, row) {
+            if (audioPlayer.src && audioPlayer.src.includes(track)) {
+                return;
+            }
+    
+            if (isPlaying && manualPlay) {
+                const shouldSwitch = confirm('Lagu yang sedang diputar belum selesai. Apakah Anda yakin ingin mengganti lagu?');
+                if (!shouldSwitch) {
+                    manualPlay = false; // Reset manual play flag
+                    return;
+                }
+            }
+    
+            let trackData = trackList.find(t => t.track === track);
+            if (!trackData || trackData.remaining <= 0) {
+                alert('Lagu ini sudah habis pemutarannya.');
+                return;
+            }
+    
+            audioPlayer.pause();
+            audioPlayer.src = track;
+            audioPlayer.play();
+    
+            currentTrackData = trackData;
+            currentTrackElement.textContent = track.replace('.mp3', '');
+            remainingCountElement.textContent = `Pemutaran tersisa: ${currentTrackData.remaining}`;
+            isPlaying = true;
+            manualPlay = false; // Reset manual play flag
+    
+            clearTimeout(autoplayTimeout);
+            updateTable(track, row);
+        }
+    
+        function updateTable(track, row) {
+            for (const tableRow of playlistTableBody.rows) {
+                if (tableRow.cells[0].textContent === track) {
+                    let kekuranganPemutaran = parseInt(tableRow.cells[2].textContent) - 1;
+                    tableRow.cells[2].textContent = kekuranganPemutaran;
+    
+                    if (currentTrackData.track === track) {
+                        remainingCountElement.textContent = `Pemutaran tersisa: ${kekuranganPemutaran}`;
+                    }
+    
+                    if (kekuranganPemutaran <= 0) {
+                        tableRow.querySelector('td').classList.add('disabled');
+                        tableRow.querySelector('td').classList.add('glow-red');
+                        tableRow.querySelector('td').onclick = null;
+                    } else {
+                        tableRow.querySelector('td').classList.remove('glow-red');
+                    }
+                }
+            }
+    
+            let rows = Array.from(playlistTableBody.rows);
+            rows.sort((a, b) => parseInt(b.cells[2].textContent) - parseInt(a.cells[2].textContent));
+    
+            playlistTableBody.innerHTML = '';
+            rows.forEach(row => playlistTableBody.appendChild(row));
+        }
+    
+        let autoplayTimeout;
+    
+        function playNextTrack() {
+            if (!autoplayEnabled) return;
+    
+            clearTimeout(autoplayTimeout);
+    
+            autoplayTimeout = setTimeout(() => {
+                let nextTrack;
+                do {
+                    if (shuffledTrackList.length > 0) {
+                        nextTrack = shuffledTrackList.shift().track;
+                    }
+                } while (nextTrack === lastPlayedTrack && shuffledTrackList.length > 0);
+                
+                if (!nextTrack || (nextTrack === lastPlayedTrack && shuffledTrackList.length === 0)) {
+                    return;
+                }
+    
+                if (nextTrack) {
+                    let nextTrackElement;
+    
+                    Array.from(playlistTableBody.querySelectorAll('td.playable-row')).forEach(td => {
+                        if (td.textContent === nextTrack) {
+                            nextTrackElement = td;
+                        }
+                    });
+    
+                    if (nextTrackElement) {
+                        playSelectedTrack(nextTrack, nextTrackElement.parentNode);
+                        lastPlayedTrack = nextTrack;
+                    }
+                }
+            }, 3000);
+        }
+    
+        function toggleAutoplay() {
+            const button = document.getElementById('toggle-autoplay');
+            if (autoplayEnabled) {
+                autoplayEnabled = false;
+                button.textContent = 'Nyalakan Autoplay';
+                clearTimeout(autoplayTimeout); // Stop autoplay if it is currently active
+            } else {
+                autoplayEnabled = true;
+                button.textContent = 'Matikan Autoplay';
+                if (!isPlaying) { // Start autoplay only if no track is currently playing
+                    playNextTrack();
+                }
+            }
+        }
+    
+        // Add event listener for autoplay toggle button
+        document.getElementById('toggle-autoplay').addEventListener('click', toggleAutoplay);
+    
+        audioPlayer.addEventListener('ended', () => {
+            isPlaying = false;
+            manualPlay = false; // Reset manual play flag
+            if (autoplayEnabled) {
+                playNextTrack();
+            }
+        });
+    
+        function playFirstTrack() {
+            if (shuffledTrackList.length > 0) {
+                playNextTrack();
+            }
+        }
+    
+        window.addEventListener('beforeunload', (event) => {
+            if (isPlaying) {
+                const message = 'Anda memiliki pemutaran lagu yang sedang aktif. Apakah Anda yakin ingin meninggalkan halaman ini?';
+                event.preventDefault();
+                event.returnValue = message;
+                return message;
+            }
+        });
+    </script>
+</body>
+</html>
